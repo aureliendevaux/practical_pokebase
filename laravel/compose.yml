@@ -1,0 +1,93 @@
+services:
+    php:
+        build:
+            context: .
+            dockerfile: docker/php.dockerfile
+        container_name: dev_practical_pokebase_laravel_website_php
+        entrypoint: "tail -f /dev/null"
+        image: practical-pokebase-laravel/php:1.0
+        networks:
+            - default
+        restart: unless-stopped
+        volumes:
+            - .:/var/www/html
+        working_dir: /var/www/html
+
+    web:
+        build:
+            context: .
+            dockerfile: docker/php.dockerfile
+        container_name: dev_practical_pokebase_laravel_website_web
+        depends_on:
+            - php
+            - database
+        image: practical-pokebase-laravel/php:1.0
+        labels:
+            caddy: "practical-pokebase-laravel.aaa"
+            caddy.tls: internal
+            caddy.reverse_proxy: "{{upstreams 80}}"
+        networks:
+            - default
+            - global_reverse_proxy
+        restart: unless-stopped
+        volumes:
+            - ./:/var/www/html
+        working_dir: /var/www/html
+
+    database:
+        build:
+            context: .
+            dockerfile: docker/postgres.dockerfile
+        container_name: dev_practical_pokebase_laravel_database
+        environment:
+            POSTGRES_USER: user
+            POSTGRES_PASSWORD: password
+            POSTGRES_DB: practical_pokebase
+        image: practical-pokebase/postgres:1.0
+        networks:
+            - default
+        restart: unless-stopped
+        volumes:
+            - database:/var/lib/postgresql/data
+
+    database_test:
+        build:
+            context: .
+            dockerfile: docker/postgres.dockerfile
+        container_name: test_practical_pokebase_laravel_database
+        environment:
+            POSTGRES_USER: user_test
+            POSTGRES_PASSWORD: password_test
+            POSTGRES_DB: practical_pokebase_test
+        image: practical-pokebase/postgres:1.0
+        networks:
+            - default
+        restart: unless-stopped
+        volumes:
+            - database_test:/var/lib/postgresql/data
+
+    adminer:
+        container_name: dev_practical_pokebase_laravel_adminer
+        environment:
+            ADMINER_DESIGN: pepa-linha
+        image: adminer
+        labels:
+            caddy: db.practical-pokebase-laravel.aaa
+            caddy.tls: internal
+            caddy.reverse_proxy: '{{upstreams 8080}}'
+        networks:
+            - default
+            - global_reverse_proxy
+        restart: unless-stopped
+
+networks:
+    default:
+        name: practical_pokebase_laravel_website_net_default
+    global_reverse_proxy:
+        external: true
+
+volumes:
+    database:
+        name: practical_pokebase_laravel_website_vol_database
+    database_test:
+        name: test_practical_pokebase_laravel_website_vol_database
